@@ -1,0 +1,107 @@
+import { useEffect, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
+import { CircleMarker, MapContainer, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+
+export type MapAssessment = {
+  id: number | string;
+  region: string;
+  latitude: number;
+  longitude: number;
+  result: { risk: string; score?: number; model_version?: string };
+  created_at: string;
+};
+type MapPageProps = {
+  assessments: MapAssessment[];
+  onAnalyze: (region: string, lat?: number, lon?: number) => void;
+};
+type Region = { name: string; city: string; lat: number; lon: number };
+
+// Reference coordinates of administrative centres, not risk measurements.
+const regions: Region[] = [
+  { name: 'Абай облысы', city: 'Семей', lat: 50.411, lon: 80.227 },
+  { name: 'Ақмола облысы', city: 'Көкшетау', lat: 53.283, lon: 69.388 },
+  { name: 'Ақтөбе облысы', city: 'Ақтөбе', lat: 50.283, lon: 57.167 },
+  { name: 'Алматы облысы', city: 'Қонаев', lat: 43.866, lon: 77.063 },
+  { name: 'Атырау облысы', city: 'Атырау', lat: 47.116, lon: 51.883 },
+  { name: 'Батыс Қазақстан облысы', city: 'Орал', lat: 51.233, lon: 51.367 },
+  { name: 'Жамбыл облысы', city: 'Тараз', lat: 42.9, lon: 71.367 },
+  { name: 'Жетісу облысы', city: 'Талдықорған', lat: 45.015, lon: 78.373 },
+  { name: 'Қарағанды облысы', city: 'Қарағанды', lat: 49.807, lon: 73.085 },
+  { name: 'Қостанай облысы', city: 'Қостанай', lat: 53.214, lon: 63.624 },
+  { name: 'Қызылорда облысы', city: 'Қызылорда', lat: 44.853, lon: 65.509 },
+  { name: 'Маңғыстау облысы', city: 'Ақтау', lat: 43.652, lon: 51.197 },
+  { name: 'Павлодар облысы', city: 'Павлодар', lat: 52.287, lon: 76.967 },
+  { name: 'Солтүстік Қазақстан облысы', city: 'Петропавл', lat: 54.875, lon: 69.162 },
+  { name: 'Түркістан облысы', city: 'Түркістан', lat: 43.297, lon: 68.251 },
+  { name: 'Ұлытау облысы', city: 'Жезқазған', lat: 47.783, lon: 67.714 },
+  { name: 'Шығыс Қазақстан облысы', city: 'Өскемен', lat: 49.948, lon: 82.628 },
+  { name: 'Астана', city: 'Астана', lat: 51.169, lon: 71.449 },
+  { name: 'Алматы', city: 'Алматы', lat: 43.238, lon: 76.945 },
+  { name: 'Шымкент', city: 'Шымкент', lat: 42.341, lon: 69.590 },
+];
+const riskLabel: Record<string, string> = { low: 'Төмен', moderate: 'Орташа', high: 'Жоғары' };
+const riskColor: Record<string, string> = { low: '#22a676', moderate: '#e8a52f', high: '#df5b5b' };
+
+function MoveTo({ region }: { region: Region | undefined }) {
+  const map = useMap();
+  useEffect(() => { if (region) map.flyTo([region.lat, region.lon], 8, { duration: 0.8 }); }, [map, region]);
+  return null;
+}
+function SelectPoint({ onSelect }: { onSelect: (lat: number, lon: number) => void }) {
+  useMapEvents({ click: e => onSelect(e.latlng.lat, e.latlng.lng) });
+  return null;
+}
+
+export default function MapPage({ assessments = [], onAnalyze }: MapPageProps) {
+  const [selected, setSelected] = useState('');
+  const [query, setQuery] = useState('');
+  const [point, setPoint] = useState<{ lat: number; lon: number } | null>(null);
+  const [satellite, setSatellite] = useState(false);
+  const [showRisk, setShowRisk] = useState(true);
+  const [showCenters, setShowCenters] = useState(true);
+  const region = regions.find(r => r.name === selected);
+  const filtered = regions.filter(r => `${r.name} ${r.city}`.toLocaleLowerCase('kk').includes(query.toLocaleLowerCase('kk')));
+  const regionalAssessments = useMemo(() => assessments.filter(a => a.region === selected), [assessments, selected]);
+  const choose = (name: string) => {
+    setSelected(name);
+    const next = regions.find(r => r.name === name);
+    setPoint(next ? { lat: next.lat, lon: next.lon } : null);
+  };
+  const controlStyle: CSSProperties = { border: '1px solid var(--border, #dce3eb)', borderRadius: 12, padding: '10px 12px', background: 'var(--card, #fff)', color: 'inherit', font: 'inherit' };
+  return <div className="map-page">
+    <div style={{ marginBottom: 20 }}>
+      <h1>Географиялық карта</h1>
+      <p>Аймақты немесе картадағы нүктені таңдап, қолжетімді талдауларды қараңыз.</p>
+    </div>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 14 }}>
+      <input aria-label="Аймақты іздеу" placeholder="Аймақты іздеу" value={query} onChange={e => setQuery(e.target.value)} style={{ ...controlStyle, minWidth: 180, flex: '1 1 180px' }} />
+      <select aria-label="Аймақты таңдаңыз" value={selected} onChange={e => choose(e.target.value)} style={{ ...controlStyle, minWidth: 210, flex: '1 1 210px' }}>
+        <option value="">Аймақты таңдаңыз</option>
+        {region && !filtered.includes(region) && <option value={region.name}>{region.name}</option>}
+        {filtered.map(r => <option key={r.name} value={r.name}>{r.name} — {r.city}</option>)}
+      </select>
+      <button type="button" style={controlStyle} onClick={() => setSatellite(!satellite)}>{satellite ? 'Карта көрінісі' : 'Спутник көрінісі'}</button>
+      <label style={{ ...controlStyle, cursor: 'pointer' }}><input type="checkbox" checked={showRisk} onChange={e => setShowRisk(e.target.checked)} /> Қауіп қабаты</label>
+      <label style={{ ...controlStyle, cursor: 'pointer' }}><input type="checkbox" checked={showCenters} onChange={e => setShowCenters(e.target.checked)} /> Аймақ орталықтары</label>
+    </div>
+    <div style={{ height: 'min(58vh, 560px)', minHeight: 350, overflow: 'hidden', borderRadius: 22, border: '1px solid #dce3eb', position: 'relative', zIndex: 0 }}>
+      <MapContainer center={[48.3, 67.3]} zoom={5} minZoom={4} maxZoom={18} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
+        {satellite ? <TileLayer attribution="Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics" url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" /> : <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />}
+        <MoveTo region={region} />
+        <SelectPoint onSelect={(lat, lon) => setPoint({ lat, lon })} />
+        {showCenters && regions.map(r => <CircleMarker key={r.name} center={[r.lat, r.lon]} radius={selected === r.name ? 8 : 5} pathOptions={{ color: '#fff', weight: 2, fillColor: '#8795a5', fillOpacity: 0.95 }} eventHandlers={{ click: () => choose(r.name) }}><Tooltip>{r.name} · {r.city}</Tooltip><Popup>{r.name}<br />Әкімшілік орталығы: {r.city}</Popup></CircleMarker>)}
+        {showRisk && assessments.filter(a => Number.isFinite(a.latitude) && Number.isFinite(a.longitude)).map(a => <CircleMarker key={a.id} center={[a.latitude, a.longitude]} radius={9} pathOptions={{ color: '#fff', weight: 2, fillColor: riskColor[a.result?.risk] || '#8795a5', fillOpacity: 0.9 }}><Popup><strong>{a.region}</strong><br />Қауіп: {riskLabel[a.result?.risk] || 'Белгісіз'}<br />{new Date(a.created_at).toLocaleString('kk-KZ')}</Popup></CircleMarker>)}
+        {point && <CircleMarker center={[point.lat, point.lon]} radius={11} pathOptions={{ color: '#2764d8', weight: 3, fillOpacity: 0.12 }}><Tooltip permanent direction="top">Таңдалған нүкте</Tooltip></CircleMarker>}
+      </MapContainer>
+    </div>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 20px', margin: '14px 0', fontSize: 13 }} aria-label="Карта белгілері">
+      {[['#22a676', 'Төмен'], ['#e8a52f', 'Орташа'], ['#df5b5b', 'Жоғары'], ['#8795a5', 'Аймақ орталығы']].map(([color, label]) => <span key={label}><span style={{ display: 'inline-block', background: color, borderRadius: '50%', width: 9, height: 9, marginRight: 6 }} />{label}</span>)}
+    </div>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, padding: 20, border: '1px solid var(--border, #dce3eb)', borderRadius: 20, background: 'var(--card, #fff)' }}>
+      <div><strong>{region ? region.name : 'Аймақ таңдалмаған'}</strong><p style={{ margin: '7px 0' }}>{region ? `Әкімшілік орталығы: ${region.city} · Сақталған талдаулар: ${regionalAssessments.length}` : 'Картадағы нүктені басып, аймақты таңдаңыз.'}</p><small>{point ? `Координаталар: ${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}` : 'Нүкте таңдалмаған'}. Жер бедері мен жауын-шашын деректері қосылған дереккөздерде қолжетімді болғанда көрсетіледі.</small></div>
+      <button type="button" style={{ ...controlStyle, background: '#2764d8', color: '#fff', border: 0, cursor: region && point ? 'pointer' : 'not-allowed', opacity: region && point ? 1 : 0.5 }} disabled={!region || !point} onClick={() => region && point && onAnalyze(region.name, point.lat, point.lon)}>Таңдалған нүктені талдау →</button>
+    </div>
+    <p style={{ fontSize: 12, opacity: 0.7 }}>Түсті белгілер сақталған талдау нүктелерін көрсетеді; олар бүкіл аймақтың қауіптілігін сипаттамайды. Аймақ шекаралары тексерілген геодерек болмағандықтан көрсетілмейді.</p>
+  </div>;
+}

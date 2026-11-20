@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: georisk-ai
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: GEORISK_REQUIRE_AUTH
+        value: "1"
+      - key: GEORISK_SITE_PASSWORD
+        generateValue: true

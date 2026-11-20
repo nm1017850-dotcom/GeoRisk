@@ -1,0 +1,11 @@
+.venv/
+**/.venv/
+node_modules/
+dist/
+__pycache__/
+*.py[cod]
+.env
+*.sqlite3
+*.db
+backend/models/*.joblib
+backend/models/*.json
