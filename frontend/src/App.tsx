@@ -12,16 +12,54 @@ type Model = {ready?:boolean; status?:string; version?:string; model_version?:st
 const riskNames:Record<string,string>={low:'Төмен',moderate:'Орташа',high:'Жоғары'};
 const statusNames:Record<string,string>={new:'Жаңа',reviewed:'Қаралған',closed:'Жабылған'};
 const date=(s:string)=>new Date(s).toLocaleString('kk-KZ');
-async function api<T>(url:string, init?:RequestInit):Promise<T>{const res=await fetch(url,{...init,headers:{'Content-Type':'application/json',...init?.headers}}); if(!res.ok){let message='Сұрауды орындау мүмкін болмады';try{const data=await res.json(); message=typeof data.detail==='string'?data.detail:message}catch{} throw new Error(message)}return res.json()}
+class ApiError extends Error {
+ constructor(message: string, readonly status: number) {
+  super(message);
+ }
+}
+
+async function api<T>(url: string, init?: RequestInit): Promise<T> {
+ const response = await fetch(url, {
+  ...init,
+  headers: { 'Content-Type': 'application/json', ...init?.headers },
+ });
+ if (!response.ok) {
+  const error = await response.json().catch(() => null);
+  const message = typeof error?.detail === 'string'
+   ? error.detail
+   : 'Сұрауды орындау мүмкін болмады';
+  throw new ApiError(message, response.status);
+ }
+ return response.json();
+}
 const nav=[['/', 'Бақылау панелі', Activity],['/map','Географиялық карта',Map],['/prediction','ЖИ болжамы',Sparkles],['/alerts','Ескертулер',Bell],['/reports','Есептер',FileBarChart],['/model','Модель зертханасы',Layers3]] as const;
 function App(){
  const [regions,setRegions]=useState<Region[]>([]),[assessments,setAssessments]=useState<Assessment[]>([]),[alerts,setAlerts]=useState<Alert[]>([]),[model,setModel]=useState<Model>({}),[online,setOnline]=useState(false),[dark,setDark]=useState(false),[menu,setMenu]=useState(false),[query,setQuery]=useState('');
  const [prefill,setPrefill]=useState<{region:string;lat?:number;lon?:number}>({region:''}); const navigate=useNavigate();
- const refresh=async()=>{const results=await Promise.allSettled([api<Region[]>('/api/regions'),api<Assessment[]>('/api/assessments'),api<Alert[]>('/api/alerts'),api<Model>('/api/model/status'),api('/api/health')]); if(results[0].status==='fulfilled')setRegions(results[0].value);if(results[1].status==='fulfilled')setAssessments(results[1].value);if(results[2].status==='fulfilled')setAlerts(results[2].value);if(results[3].status==='fulfilled')setModel(results[3].value);setOnline(results[4].status==='fulfilled')};
+ const [needsLogin, setNeedsLogin] = useState(false);
+ const refresh = async () => {
+  const [regionResult, assessmentResult, alertResult, modelResult, healthResult] =
+   await Promise.allSettled([
+    api<Region[]>('/api/regions'),
+    api<Assessment[]>('/api/assessments'),
+    api<Alert[]>('/api/alerts'),
+    api<Model>('/api/model/status'),
+    api('/api/health'),
+   ]);
+  if (regionResult.status === 'fulfilled') setRegions(regionResult.value);
+  if (assessmentResult.status === 'fulfilled') setAssessments(assessmentResult.value);
+  if (alertResult.status === 'fulfilled') setAlerts(alertResult.value);
+  if (modelResult.status === 'fulfilled') setModel(modelResult.value);
+  setNeedsLogin(regionResult.status === 'rejected' &&
+   regionResult.reason instanceof ApiError && regionResult.reason.status === 401);
+  setOnline(healthResult.status === 'fulfilled');
+ };
  useEffect(()=>{void refresh()},[]); useEffect(()=>{document.documentElement.dataset.theme=dark?'dark':'light'},[dark]);
  const analyze=(region:string,lat?:number,lon?:number)=>{setPrefill({region,lat,lon});navigate('/prediction')};
  const title=nav.find(([p])=>p===location.pathname)?.[1]||'Бақылау панелі';
- return <div className="shell"><aside className={'sidebar '+(menu?'open':'')}><div className="brand"><div className="brand-icon"><Mountain size={23}/></div><div><strong>GeoRisk <span>AI</span></strong><small>ГЕОТӘУЕКЕЛ ПЛАТФОРМАСЫ</small></div><button className="mobile-close icon-button" onClick={()=>setMenu(false)} aria-label="Мәзірді жабу"><X/></button></div><p className="eyebrow nav-label">ЖҰМЫС КЕҢІСТІГІ</p><nav>{nav.map(([path,label,Icon])=><NavLink key={path} to={path} end={path==='/'} onClick={()=>setMenu(false)} className={({isActive})=>isActive?'nav-item active':'nav-item'}><Icon size={19}/><span>{label}</span><ChevronRight className="nav-arrow" size={15}/></NavLink>)}</nav><div className="sidebar-bottom"><div className="side-card"><div className="side-card-icon"><Shield size={18}/></div><strong>Деректерге негізделген шешім</strong><p>Геологиялық қауіптерді бірге зерттейік.</p></div><div className="connection"><i className={online?'dot good':'dot'}/>{online?'Серверге қосылған':'Сервер қолжетімсіз'}</div></div></aside>
+ return <div className="shell"><aside className={'sidebar '+(menu?'open':'')}><div className="brand"><div className="brand-icon"><Mountain size={23}/></div><div><strong>GeoRisk <span>AI</span></strong><small>ГЕОТӘУЕКЕЛ ПЛАТФОРМАСЫ</small></div><button className="mobile-close icon-button" onClick={()=>setMenu(false)} aria-label="Мәзірді жабу"><X/></button></div><p className="eyebrow nav-label">ЖҰМЫС КЕҢІСТІГІ</p><nav>{nav.map(([path,label,Icon])=><NavLink key={path} to={path} end={path==='/'} onClick={()=>setMenu(false)} className={({isActive})=>isActive?'nav-item active':'nav-item'}><Icon size={19}/><span>{label}</span><ChevronRight className="nav-arrow" size={15}/></NavLink>)}</nav><div className="sidebar-bottom"><div className="side-card"><div className="side-card-icon"><Shield size={18}/></div><strong>Деректерге негізделген шешім</strong><p>Геологиялық қауіптерді бірге зерттейік.</p></div><div className="connection"><i className={online?'dot good':'dot'}/>{needsLogin
+  ? <a className="text-button" href="/api/session">Серверге кіру</a>
+  : online ? 'Серверге қосылған' : 'Сервер қолжетімсіз'}</div></div></aside>
  <main className="main"><header className="topbar"><button className="menu-button icon-button" onClick={()=>setMenu(true)} aria-label="Мәзірді ашу"><Menu/></button><div className="breadcrumb">Жұмыс кеңістігі <ChevronRight size={14}/> <strong>{title}</strong></div><div className="top-actions"><div className="search"><Search size={16}/><input placeholder="Аймақты іздеу..." value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&query.trim()){navigate('/reports');}}}/><kbd>↵</kbd></div><button className="icon-button" onClick={()=>setDark(!dark)} aria-label="Түсті өзгерту">{dark?<Sun size={19}/>:<Moon size={19}/>}</button><button className="icon-button notification" onClick={()=>navigate('/alerts')} aria-label="Ескертулер"><Bell size={19}/>{alerts.some(a=>a.status==='new')&&<b/>}</button><div className="avatar">GR</div></div></header>
  <div className="content"><Routes><Route path="/" element={<Dashboard assessments={assessments} alerts={alerts} model={model} onAnalyze={()=>navigate('/prediction')} onMap={()=>navigate('/map')}/>}/><Route path="/map" element={<MapPage assessments={assessments} onAnalyze={analyze}/>}/><Route path="/prediction" element={<Prediction regions={regions} model={model} prefill={prefill} refresh={refresh}/>}/><Route path="/alerts" element={<Alerts alerts={alerts} refresh={refresh}/>}/><Route path="/reports" element={<Reports assessments={assessments} query={query}/>}/><Route path="/model" element={<ModelLab model={model}/>}/></Routes><footer><span>© 2026 GeoRisk AI</span><span>Зерттеу құралы · Ресми төтенше жағдай ескертуі емес</span></footer></div></main></div>
 }

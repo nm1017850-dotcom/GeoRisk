@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/:page(map|prediction|alerts|reports|model)",
+      "destination": "/index.html"
+    }
+  ]
+}

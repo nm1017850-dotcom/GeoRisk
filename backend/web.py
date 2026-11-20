@@ -7,7 +7,7 @@ from hmac import compare_digest
 from pathlib import Path
 
 from fastapi import Request
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app import app
@@ -41,6 +41,11 @@ if PASSWORD:
         )
 
 app.mount("/assets", StaticFiles(directory=BUILD / "assets"), name="assets")
+
+
+@app.get("/api/session", include_in_schema=False)
+def session():
+    return RedirectResponse("/", status_code=303)
 
 
 @app.get("/", include_in_schema=False)
