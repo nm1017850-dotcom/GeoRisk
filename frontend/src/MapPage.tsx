@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CircleMarker, MapContainer, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { regions, type Region } from './regions';
 
 export type MapAssessment = {
   id: number | string;
@@ -14,31 +15,6 @@ type MapPageProps = {
   assessments: MapAssessment[];
   onAnalyze: (region: string, lat?: number, lon?: number) => void;
 };
-type Region = { name: string; city: string; lat: number; lon: number };
-
-// Reference coordinates of administrative centres, not risk measurements.
-const regions: Region[] = [
-  { name: 'Абай облысы', city: 'Семей', lat: 50.411, lon: 80.227 },
-  { name: 'Ақмола облысы', city: 'Көкшетау', lat: 53.283, lon: 69.388 },
-  { name: 'Ақтөбе облысы', city: 'Ақтөбе', lat: 50.283, lon: 57.167 },
-  { name: 'Алматы облысы', city: 'Қонаев', lat: 43.866, lon: 77.063 },
-  { name: 'Атырау облысы', city: 'Атырау', lat: 47.116, lon: 51.883 },
-  { name: 'Батыс Қазақстан облысы', city: 'Орал', lat: 51.233, lon: 51.367 },
-  { name: 'Жамбыл облысы', city: 'Тараз', lat: 42.9, lon: 71.367 },
-  { name: 'Жетісу облысы', city: 'Талдықорған', lat: 45.015, lon: 78.373 },
-  { name: 'Қарағанды облысы', city: 'Қарағанды', lat: 49.807, lon: 73.085 },
-  { name: 'Қостанай облысы', city: 'Қостанай', lat: 53.214, lon: 63.624 },
-  { name: 'Қызылорда облысы', city: 'Қызылорда', lat: 44.853, lon: 65.509 },
-  { name: 'Маңғыстау облысы', city: 'Ақтау', lat: 43.652, lon: 51.197 },
-  { name: 'Павлодар облысы', city: 'Павлодар', lat: 52.287, lon: 76.967 },
-  { name: 'Солтүстік Қазақстан облысы', city: 'Петропавл', lat: 54.875, lon: 69.162 },
-  { name: 'Түркістан облысы', city: 'Түркістан', lat: 43.297, lon: 68.251 },
-  { name: 'Ұлытау облысы', city: 'Жезқазған', lat: 47.783, lon: 67.714 },
-  { name: 'Шығыс Қазақстан облысы', city: 'Өскемен', lat: 49.948, lon: 82.628 },
-  { name: 'Астана', city: 'Астана', lat: 51.169, lon: 71.449 },
-  { name: 'Алматы', city: 'Алматы', lat: 43.238, lon: 76.945 },
-  { name: 'Шымкент', city: 'Шымкент', lat: 42.341, lon: 69.590 },
-];
 const riskLabel: Record<string, string> = { low: 'Төмен', moderate: 'Орташа', high: 'Жоғары' };
 const riskColor: Record<string, string> = { low: '#22a676', moderate: '#e8a52f', high: '#df5b5b' };
 

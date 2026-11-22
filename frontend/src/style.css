@@ -66,15 +66,7 @@ h3 { font-size: 1.16rem; letter-spacing: -.018em; }
 .brand { display: flex; align-items: center; min-height: 36px; margin: 0 7px 42px; }
 .brand-link { display: inline-flex; align-items: center; gap: 10px; font-size: 1.35rem; font-weight: 680; letter-spacing: -.04em; }
 .brand-ai { color: var(--accent); }
-.brand-icon {
-  display: grid;
-  place-items: center;
-  width: 35px;
-  height: 35px;
-  color: #fff6ec;
-  background: #273d34;
-  border-radius: 9px;
-}
+.brand-icon { display: block; flex: none; }
 .sidebar nav { display: grid; gap: 4px; }
 .nav-item {
   display: flex;
