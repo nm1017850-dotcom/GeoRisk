@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState, type FormEvent, type ReactNode } f
 import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Activity, ArrowDownToLine, ArrowRight, ArrowUpRight, Bell, Check, Clock3, FileBarChart, Globe2, Layers3, Map as MapIcon, Menu, Moon, Plus, Search, Send, Shield, Sparkles, Sun, X } from 'lucide-react';
-import mark from './assets/georisk-mark.png';
+import logo from './assets/georisk-logo.webp';
 import { regions as referenceRegions, republicCityIds, type Region } from './regions';
 
 const MapPage = lazy(() => import('./MapPage'));
@@ -89,8 +89,7 @@ function App(){
    <aside className={menu ? 'sidebar open' : 'sidebar'} id="site-navigation">
     <div className="brand">
      <Link to="/" className="brand-link" onClick={() => setMenu(false)}>
-      <img className="brand-icon" src={mark} alt="" width={36} height={36} />
-      <span>GeoRisk<span className="brand-ai"> AI</span></span>
+      <img className="brand-logo" src={logo} alt="GeoRisk AI" width={432} height={101} />
      </Link>
      <button className="mobile-close icon-button" onClick={() => setMenu(false)} aria-label="Мәзірді жабу"><X size={20} /></button>
     </div>

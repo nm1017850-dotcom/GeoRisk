@@ -63,10 +63,10 @@ h3 { font-size: 1.16rem; letter-spacing: -.018em; }
   background: var(--card);
   border-right: 1px solid var(--border);
 }
-.brand { display: flex; align-items: center; min-height: 36px; margin: 0 7px 42px; }
-.brand-link { display: inline-flex; align-items: center; gap: 10px; font-size: 1.35rem; font-weight: 680; letter-spacing: -.04em; }
-.brand-ai { color: var(--accent); }
-.brand-icon { display: block; flex: none; }
+.brand { display: flex; align-items: center; gap: 5px; min-height: 48px; margin: 0 7px 30px; }
+.brand-link { display: block; flex: 0 1 190px; min-width: 0; padding: 5px 6px; border-radius: 8px; }
+.brand-logo { display: block; width: 100%; height: auto; }
+[data-theme='dark'] .brand-link { background: #f4efe4; }
 .sidebar nav { display: grid; gap: 4px; }
 .nav-item {
   display: flex;
@@ -334,7 +334,7 @@ td strong { color: var(--text); }
 }
 
 @media (max-width: 780px) {
-  .sidebar { transform: translateX(-100%); visibility: hidden; transition: transform .19s ease, visibility .19s; }
+  .sidebar { width: min(228px, calc(100vw - 28px)); transform: translateX(-100%); visibility: hidden; transition: transform .19s ease, visibility .19s; }
   .sidebar.open { transform: translateX(0); visibility: visible; }
   .sidebar .mobile-close { display: grid; margin-left: auto; }
   .nav-scrim { display: block; position: fixed; inset: 0; z-index: 19; border: 0; background: #17221ab0; }
