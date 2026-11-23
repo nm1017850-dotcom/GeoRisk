@@ -1,3 +1,5 @@
+import { answerAssistant, assistantSession } from "../server/assistant.mjs";
+
 const routes = {
   GET: /^\/api\/(health|model\/status|regions|assessments|alerts|reports\/\d+|export\/assessments\.csv)$/,
   POST: /^\/api\/(predict|assistant|datasets\/upload)$/,
@@ -16,20 +18,24 @@ async function proxy(request) {
     return problem(404, "API мекенжайы табылмады.");
   }
 
+  const origin = request.headers.get("Origin");
+  if (request.method !== "GET" && origin && origin !== incoming.origin) {
+    return problem(403, "Сұрауды осы сайттан жіберіңіз.");
+  }
+
+  const backendOrigin = process.env.GEORISK_API_ORIGIN?.trim();
+  if (!backendOrigin && login) return assistantSession(request);
+  if (!backendOrigin && pathname === "/api/assistant") return answerAssistant(request);
+
   let backend;
   try {
-    backend = new URL(process.env.GEORISK_API_ORIGIN);
+    backend = new URL(backendOrigin);
     if (backend.protocol !== "https:" || backend.username || backend.password ||
         backend.pathname !== "/" || backend.search || backend.hash) {
       throw new Error("Expected HTTPS origin");
     }
   } catch {
     return problem(503, "Бұл нұсқада GeoRisk API әлі қосылмаған.");
-  }
-
-  const origin = request.headers.get("Origin");
-  if (request.method !== "GET" && origin && origin !== incoming.origin) {
-    return problem(403, "Сұрауды осы сайттан жіберіңіз.");
   }
 
   const target = new URL(pathname, backend);
