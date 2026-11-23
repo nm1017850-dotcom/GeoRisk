@@ -30,6 +30,32 @@ function unavailable() {
   return problem(503, "ЖИ көмекшісінің серверлік баптауы аяқталмаған.");
 }
 
+const providerCodes = new Map([
+  ["invalid_api_key", ["key", "OpenAI кілтті қабылдамады. Vercel-дегі OPENAI_API_KEY мәнін жаңа кілтпен ауыстырып, сайтты қайта жариялаңыз."]],
+  ["insufficient_quota", ["billing", "OpenAI жобасының сұрау қоры таусылған. OpenAI Platform жүйесіндегі төлем мен пайдалану лимитін тексеріңіз."]],
+  ["billing_hard_limit_reached", ["billing", "OpenAI жобасы төлем лимитіне жеткен. OpenAI Platform жүйесіндегі лимитті тексеріңіз."]],
+  ["model_not_found", ["model", "OpenAI кілтінің осы модельге рұқсаты жоқ немесе модель аты қате. Vercel-дегі OPENAI_MODEL мәнін тексеріңіз."]],
+  ["unsupported_country_region_territory", ["location", "OpenAI Vercel функциясы жұмыс істейтін аймақтан сұрау қабылдамайды."]],
+]);
+
+const providerStatuses = new Map([
+  [400, ["request", "OpenAI сұрау параметрлерін қабылдамады. Vercel-дегі OPENAI_MODEL мәнін тексеріңіз."]],
+  [401, providerCodes.get("invalid_api_key")],
+  [403, ["permissions", "OpenAI осы сұрауға рұқсат бермеді. Кілттің жобаға және Chat Completions сұрауларына рұқсатын тексеріңіз."]],
+  [404, providerCodes.get("model_not_found")],
+  [429, ["rate", "OpenAI сұрау шегіне жетті. Кейінірек қайталаңыз."]],
+]);
+
+async function providerFailure(result) {
+  const payload = await result.json().catch(() => null);
+  const [category, detail] =
+    providerCodes.get(payload?.error?.code) ??
+    providerStatuses.get(result.status) ??
+    ["unavailable", "OpenAI қызметі қазір жауап бермеді. Кейінірек қайталаңыз."];
+  console.warn("OpenAI assistant request rejected", { status: result.status, category });
+  return problem(category === "rate" ? 429 : 502, detail);
+}
+
 export function assistantSession(request) {
   if (!configured()) return unavailable();
   if (!hasAccess(request)) {
@@ -83,7 +109,7 @@ export async function answerAssistant(request) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        model: process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -94,13 +120,12 @@ export async function answerAssistant(request) {
           },
           { role: "user", content: message },
         ],
-        max_tokens: 500,
+        max_completion_tokens: 500,
       }),
       signal: AbortSignal.timeout(18_000),
       redirect: "error",
     });
-    if (result.status === 429) return problem(429, "ЖИ қызметі бос емес. Кейінірек қайталаңыз.");
-    if (!result.ok) return problem(502, "ЖИ қызметін тексеру қажет. Кейінірек қайталаңыз.");
+    if (!result.ok) return await providerFailure(result);
 
     const data = await result.json();
     const answer = data?.choices?.[0]?.message?.content;
